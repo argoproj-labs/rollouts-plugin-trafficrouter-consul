@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
-	pluginTypes "github.com/argoproj/argo-rollouts/utils/plugin/types"
 	consulv1aplha1 "github.com/hashicorp/consul-k8s/control-plane/api/v1alpha1"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
@@ -28,7 +27,7 @@ func TestSetWeight(t *testing.T) {
 		inputSplitter    *consulv1aplha1.ServiceSplitter
 		expectedResolver *consulv1aplha1.ServiceResolver
 		expectedSplitter *consulv1aplha1.ServiceSplitter
-		expectedError    pluginTypes.RpcError
+		expectedError    string
 	}{
 		{
 			testName: "in progress, desired weight 50",
@@ -113,7 +112,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "in progress, desired weight 25",
@@ -198,7 +196,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "in progress, desired weight 75",
@@ -283,7 +280,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "in progress, desired weight 0",
@@ -368,7 +364,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "completed, desired weight 0",
@@ -453,7 +448,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "in progress, desired weight 100",
@@ -538,7 +532,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "aborted rollout",
@@ -625,7 +618,6 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
 		},
 		{
 			testName: "in progress, desired weight 50, non-default-suffix",
@@ -725,7 +717,673 @@ func TestSetWeight(t *testing.T) {
 					},
 				},
 			},
-			expectedError: pluginTypes.RpcError{},
+		},
+		{
+			testName: "empty canary status returns immediately",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-number": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJsonWithSuffix("number"),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{},
+				},
+			},
+			desiredWeight:    50,
+			inputResolver:    defaultResolver(),
+			inputSplitter:    defaultSplitter(),
+			expectedResolver: defaultResolver(),
+			expectedSplitter: defaultSplitter(),
+		},
+		{
+			testName: "error invalid rollout config",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-number": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: invalidPlugin(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight:    50,
+			inputResolver:    defaultResolver(),
+			inputSplitter:    defaultSplitter(),
+			expectedResolver: nil,
+			expectedSplitter: nil,
+			expectedError:    "invalid consul traffic routing configuration.",
+		},
+		{
+			testName: "error missing resolver",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight:    50,
+			inputResolver:    nil,
+			inputSplitter:    defaultSplitter(),
+			expectedResolver: nil,
+			expectedSplitter: nil,
+			expectedError:    "serviceresolvers.consul.hashicorp.com \"test-service\" not found",
+		},
+		{
+			testName: "error missing splitter",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight:    50,
+			inputResolver:    defaultResolver(),
+			inputSplitter:    nil,
+			expectedResolver: nil,
+			expectedSplitter: nil,
+			expectedError:    "servicesplitters.consul.hashicorp.com \"test-service\" not found",
+		},
+		{
+			testName: "error in progress rollout invalid resolver",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: &consulv1aplha1.ServiceResolver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceResolverSpec{
+					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
+						"foo": {
+							Filter: "Service.Meta.version == 1",
+						},
+						"bar": {
+							Filter: "",
+						},
+					},
+				},
+			},
+			inputSplitter: defaultSplitter(),
+			expectedError: "spec.subsets.canary.filter was not found in consul service resolver",
+		},
+		{
+			testName: "error aborted rollout invalid resolver",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Abort:              true,
+					AbortedAt:          &metav1.Time{Time: time.Now()},
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 100,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 0,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 0,
+			inputResolver: &consulv1aplha1.ServiceResolver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceResolverSpec{
+					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
+						"foo": {
+							Filter: "Service.Meta.version == 1",
+						},
+						"bar": {
+							Filter: "",
+						},
+					},
+				},
+			},
+			inputSplitter: defaultSplitter(),
+			expectedError: "spec.subsets.canary.filter was not found in consul service resolver",
+		},
+		{
+			testName: "error completed rollout invalid resolver invalid canary subset",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionTrue,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 0,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 100,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 0,
+			inputResolver: &consulv1aplha1.ServiceResolver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceResolverSpec{
+					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
+						"foo": {
+							Filter: "Service.Meta.version == 1",
+						},
+						"stable": {
+							Filter: "",
+						},
+					},
+				},
+			},
+			inputSplitter: defaultSplitter(),
+			expectedError: "spec.subsets.canary.filter was not found in consul service resolver",
+		},
+		{
+			testName: "error completed rollout invalid resolver invalid stable subset",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionTrue,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 0,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 100,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 0,
+			inputResolver: &consulv1aplha1.ServiceResolver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceResolverSpec{
+					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
+						"canary": {
+							Filter: "Service.Meta.version == 1",
+						},
+						"bar": {
+							Filter: "",
+						},
+					},
+				},
+			},
+			inputSplitter: defaultSplitter(),
+			expectedError: "spec.subsets.canary.filter was not found in consul service resolver",
+		},
+		{
+			testName: "error missing splitter subsets",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: defaultResolver(),
+			inputSplitter: &consulv1aplha1.ServiceSplitter{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceSplitterSpec{
+					Splits: []consulv1aplha1.ServiceSplit{},
+				},
+			},
+			expectedError: "spec.splits was not found in consul service splitter",
+		},
+		{
+			testName: "error invalid number of splitter subsets",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: defaultResolver(),
+			inputSplitter: &consulv1aplha1.ServiceSplitter{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceSplitterSpec{
+					Splits: []consulv1aplha1.ServiceSplit{
+						{
+							Weight:        100,
+							ServiceSubset: "stable",
+						},
+						{
+							Weight:        0,
+							ServiceSubset: "canary",
+						},
+						{
+							Weight:        0,
+							ServiceSubset: "other",
+						},
+					},
+				},
+			},
+			expectedError: "unexpected number of service splits. Expected 2, found 3",
+		},
+		{
+			testName: "error invalid splitter subset names",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: defaultResolver(),
+			inputSplitter: &consulv1aplha1.ServiceSplitter{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceSplitterSpec{
+					Splits: []consulv1aplha1.ServiceSplit{
+						{
+							Weight:        100,
+							ServiceSubset: "foo",
+						},
+						{
+							Weight:        0,
+							ServiceSubset: "bar",
+						},
+					},
+				},
+			},
+			expectedError: "unexpected service split",
 		},
 	}
 
@@ -735,7 +1393,14 @@ func TestSetWeight(t *testing.T) {
 			require.NoError(t, consulv1aplha1.AddToScheme(s))
 
 			objs := []client.Object{}
-			objs = append(objs, testCase.inputResolver, testCase.inputSplitter)
+
+			if testCase.inputResolver != nil {
+				objs = append(objs, testCase.inputResolver)
+			}
+			if testCase.inputSplitter != nil {
+				objs = append(objs, testCase.inputSplitter)
+			}
+
 			namespacedName := types.NamespacedName{Name: "test-service", Namespace: "default"}
 
 			k8sClient := fake.NewClientBuilder().WithScheme(s).WithObjects(objs...).Build()
@@ -745,16 +1410,24 @@ func TestSetWeight(t *testing.T) {
 				LogCtx:    logrus.NewEntry(logrus.New()),
 			}
 			err := p.SetWeight(testCase.rollout, testCase.desiredWeight, []v1alpha1.WeightDestination{})
-			require.Equal(t, testCase.expectedError, err, "errors should be equal")
-			actualResolver := &consulv1aplha1.ServiceResolver{}
-			actualSplitter := &consulv1aplha1.ServiceSplitter{}
-			require.NoError(t, k8sClient.Get(context.TODO(), namespacedName, actualResolver, &client.GetOptions{}))
-			require.NoError(t, k8sClient.Get(context.TODO(), namespacedName, actualSplitter, &client.GetOptions{}))
-			require.ElementsMatch(t, testCase.expectedSplitter.Spec.Splits, actualSplitter.Spec.Splits)
-			require.Equal(t, testCase.expectedResolver.Spec.Subsets["canary"], actualResolver.Spec.Subsets["canary"])
-			require.Equal(t, testCase.expectedResolver.Spec.Subsets["stable"], actualResolver.Spec.Subsets["stable"])
+			if testCase.expectedError == "" {
+				actualResolver := &consulv1aplha1.ServiceResolver{}
+				actualSplitter := &consulv1aplha1.ServiceSplitter{}
+				require.NoError(t, k8sClient.Get(context.TODO(), namespacedName, actualResolver, &client.GetOptions{}))
+				require.NoError(t, k8sClient.Get(context.TODO(), namespacedName, actualSplitter, &client.GetOptions{}))
+				require.ElementsMatch(t, testCase.expectedSplitter.Spec.Splits, actualSplitter.Spec.Splits)
+				require.Equal(t, testCase.expectedResolver.Spec.Subsets["canary"], actualResolver.Spec.Subsets["canary"])
+				require.Equal(t, testCase.expectedResolver.Spec.Subsets["stable"], actualResolver.Spec.Subsets["stable"])
+			} else {
+				require.Contains(t, err.ErrorString, testCase.expectedError)
+			}
 		})
 	}
+}
+
+func TestRpcPluginType(t *testing.T) {
+	p := &RpcPlugin{}
+	require.Equal(t, Type, p.Type())
 }
 
 func pluginJson() []byte {
@@ -774,6 +1447,12 @@ func pluginJsonWithSuffix(suffix string) []byte {
 		StableSubsetName:            "stable",
 		ServiceMetaAnnotationSuffix: suffix,
 	}
+	jsonConfig, _ := json.Marshal(config)
+	return jsonConfig
+}
+
+func invalidPlugin() []byte {
+	config := struct{}{}
 	jsonConfig, _ := json.Marshal(config)
 	return jsonConfig
 }
