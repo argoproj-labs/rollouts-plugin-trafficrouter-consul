@@ -7,6 +7,7 @@ require (
 	github.com/hashicorp/consul-k8s/control-plane v0.0.0-20240125001725-f96e3d6fd67b
 	github.com/hashicorp/go-plugin v1.6.0
 	github.com/sirupsen/logrus v1.9.3
+	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.26.12
 	k8s.io/apimachinery v0.26.12
 	k8s.io/client-go v0.26.12
@@ -20,6 +21,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
@@ -61,6 +63,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
