@@ -133,7 +133,7 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 		return pluginTypes.RpcError{ErrorString: "spec.splits was not found in consul service splitter"}
 	}
 	if len(serviceSplitter.Spec.Splits) != 2 {
-		return pluginTypes.RpcError{ErrorString: fmt.Sprintf("unexpected number of service splits expected 2 found %d", len(serviceSplitter.Spec.Splits))}
+		return pluginTypes.RpcError{ErrorString: fmt.Sprintf("unexpected number of service splits. Expected 2, found %d", len(serviceSplitter.Spec.Splits))}
 	}
 
 	// We only expect there to be two splits, one for the canary and one for the stable
@@ -178,7 +178,7 @@ func (r *RpcPlugin) SetMirrorRoute(_ *v1alpha1.Rollout, _ *v1alpha1.SetMirrorRou
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcError {
+func (r *RpcPlugin) RemoveManagedRoutes(_ *v1alpha1.Rollout) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
@@ -248,5 +248,15 @@ func getPluginConfig(rollout *v1alpha1.Rollout) (*ConsulTrafficRouting, error) {
 	if err := json.Unmarshal(rollout.Spec.Strategy.Canary.TrafficRouting.Plugins[ConfigKey], &consulConfig); err != nil {
 		return nil, err
 	}
+	if err := validateConfig(consulConfig); err != nil {
+		return nil, err
+	}
 	return &consulConfig, nil
+}
+
+func validateConfig(cfg ConsulTrafficRouting) error {
+	if cfg.StableSubsetName == "" || cfg.CanarySubsetName == "" || cfg.ServiceName == "" {
+		return errors.New("invalid consul traffic routing configuration. stableSubsetName, canarySubsetName, and serviceName must be set")
+	}
+	return nil
 }
