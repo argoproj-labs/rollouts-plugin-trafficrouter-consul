@@ -83,15 +83,15 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 	}
 
 	// Get the service resolver
-	serviceResolver := consulv1aplha1.ServiceResolver{}
-	if err := r.K8SClient.Get(ctx, types.NamespacedName{Name: serviceName, Namespace: rollout.GetNamespace()}, &serviceResolver, &client.GetOptions{}); err != nil {
+	serviceResolver := &consulv1aplha1.ServiceResolver{}
+	if err := r.K8SClient.Get(ctx, types.NamespacedName{Name: serviceName, Namespace: rollout.GetNamespace()}, serviceResolver, &client.GetOptions{}); err != nil {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
 	}
 
 	// If the rollout is successful (not aborted) then modify the resolver
 	if rolloutAborted(rollout) {
 		r.LogCtx.Debug("Updating ServiceResolver for aborted rollout", "canarySubsetName", canarySubsetName, "serviceResolver", serviceResolver)
-		serviceResolver, err = r.updateResolverForAbortedRollout(canarySubsetName, serviceResolver)
+		serviceResolver, err = r.updateResolverForAbortedRollout(canarySubsetName, *serviceResolver)
 		if err != nil {
 			return pluginTypes.RpcError{ErrorString: err.Error()}
 		}
@@ -99,14 +99,14 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 		// Check if the pods have completely rolled over, and we are finished, now set the resolver to the stable version
 		if rolloutComplete(rollout) {
 			r.LogCtx.Debug("Updating ServiceResolver for completion", "stableSubsetName", stableSubsetName, "canarySubsetName", canarySubsetName, "serviceMetaVersion", serviceMetaVersion, "serviceResolver", serviceResolver)
-			serviceResolver, err = r.updateResolverAfterCompletion(stableSubsetName, canarySubsetName, serviceMetaVersion, serviceResolver)
+			serviceResolver, err = r.updateResolverAfterCompletion(stableSubsetName, canarySubsetName, serviceMetaVersion, *serviceResolver)
 			if err != nil {
 				return pluginTypes.RpcError{ErrorString: err.Error()}
 			}
 		} else {
 			// Update the resolver so that canary subset points to the desired version
 			r.LogCtx.Debug("Updating ServiceResolver for rollout", "canarySubsetName", canarySubsetName, "serviceMetaVersion", serviceMetaVersion, "serviceResolver", serviceResolver)
-			serviceResolver, err = r.updateResolverForRollouts(canarySubsetName, serviceMetaVersion, serviceResolver)
+			serviceResolver, err = r.updateResolverForRollouts(canarySubsetName, serviceMetaVersion, *serviceResolver)
 			if err != nil {
 				return pluginTypes.RpcError{ErrorString: err.Error()}
 			}
@@ -140,7 +140,7 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 
 	// Persist resources at end of function to prevent writing to the cluster if there is an error
 	// Persist changes to the ServiceResolver
-	if err := r.K8SClient.Update(ctx, &serviceResolver, &client.UpdateOptions{}); err != nil {
+	if err := r.K8SClient.Update(ctx, serviceResolver, &client.UpdateOptions{}); err != nil {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
 	}
 
@@ -172,43 +172,43 @@ func (r *RpcPlugin) RemoveManagedRoutes(ro *v1alpha1.Rollout) pluginTypes.RpcErr
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin) updateResolverAfterCompletion(stableSubsetName, canarySubsetName, serviceMetaVersion string, sr consulv1aplha1.ServiceResolver) (consulv1aplha1.ServiceResolver, error) {
+func (r *RpcPlugin) updateResolverAfterCompletion(stableSubsetName, canarySubsetName, serviceMetaVersion string, sr consulv1aplha1.ServiceResolver) (*consulv1aplha1.ServiceResolver, error) {
 	var err error
-	sr, err = r.updateCanaryResolverForRollouts(canarySubsetName, fmt.Sprintf(filterServiceMetaVersionTemplate, serviceMetaVersion), sr)
+	serviceResolver, err := r.updateCanaryResolverForRollouts(canarySubsetName, fmt.Sprintf(filterServiceMetaVersionTemplate, serviceMetaVersion), sr)
 	if err != nil {
-		return consulv1aplha1.ServiceResolver{}, err
+		return nil, err
 	}
 
 	// Update the resolver so that stable subset points to the former canary version
-	if _, ok := sr.Spec.Subsets[stableSubsetName]; !ok {
-		return consulv1aplha1.ServiceResolver{}, errors.New(fmt.Sprintf("spec.subsets.%s.filter was not found in consul service resolver: %v", canarySubsetName, sr))
+	if _, ok := serviceResolver.Spec.Subsets[stableSubsetName]; !ok {
+		return nil, errors.New(fmt.Sprintf("spec.subsets.%s.filter was not found in consul service resolver: %v", canarySubsetName, sr))
 	}
-	stableSubset := sr.Spec.Subsets[stableSubsetName]
+	stableSubset := serviceResolver.Spec.Subsets[stableSubsetName]
 	stableSubset.Filter = fmt.Sprintf(filterServiceMetaVersionTemplate, serviceMetaVersion)
-	sr.Spec.Subsets[stableSubsetName] = stableSubset
+	serviceResolver.Spec.Subsets[stableSubsetName] = stableSubset
 
-	return sr, nil
+	return serviceResolver, nil
 }
 
 // updateCanaryResolverForRollouts sets the canary filter to the serviceMetaVersion passed in
-func (r *RpcPlugin) updateResolverForRollouts(canarySubsetName, serviceMetaVersion string, sr consulv1aplha1.ServiceResolver) (consulv1aplha1.ServiceResolver, error) {
+func (r *RpcPlugin) updateResolverForRollouts(canarySubsetName, serviceMetaVersion string, sr consulv1aplha1.ServiceResolver) (*consulv1aplha1.ServiceResolver, error) {
 	return r.updateCanaryResolverForRollouts(canarySubsetName, fmt.Sprintf(filterServiceMetaVersionTemplate, serviceMetaVersion), sr)
 }
 
 // updateResolverForAbortedRollout sets the canary filter to empty if we've aborted the rollout
-func (r *RpcPlugin) updateResolverForAbortedRollout(canarySubsetName string, sr consulv1aplha1.ServiceResolver) (consulv1aplha1.ServiceResolver, error) {
+func (r *RpcPlugin) updateResolverForAbortedRollout(canarySubsetName string, sr consulv1aplha1.ServiceResolver) (*consulv1aplha1.ServiceResolver, error) {
 	return r.updateCanaryResolverForRollouts(canarySubsetName, "", sr)
 }
 
-func (r *RpcPlugin) updateCanaryResolverForRollouts(canarySubsetName, filterValue string, sr consulv1aplha1.ServiceResolver) (consulv1aplha1.ServiceResolver, error) {
+func (r *RpcPlugin) updateCanaryResolverForRollouts(canarySubsetName, filterValue string, sr consulv1aplha1.ServiceResolver) (*consulv1aplha1.ServiceResolver, error) {
 	if _, ok := sr.Spec.Subsets[canarySubsetName]; !ok {
-		return consulv1aplha1.ServiceResolver{}, errors.New(fmt.Sprintf("spec.subsets.%s.filter was not found in consul service resolver: %v", canarySubsetName, sr))
+		return nil, errors.New(fmt.Sprintf("spec.subsets.%s.filter was not found in consul service resolver: %v", canarySubsetName, sr))
 	}
 	canarySubset := sr.Spec.Subsets[canarySubsetName]
 	canarySubset.Filter = filterValue
 	sr.Spec.Subsets[canarySubsetName] = canarySubset
 
-	return sr, nil
+	return &sr, nil
 }
 
 func rolloutComplete(rollout *v1alpha1.Rollout) bool {
