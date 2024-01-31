@@ -12,11 +12,12 @@ import (
 	pluginTypes "github.com/argoproj/argo-rollouts/utils/plugin/types"
 	consulv1aplha1 "github.com/hashicorp/consul-k8s/control-plane/api/v1alpha1"
 	"github.com/sirupsen/logrus"
-	"github.com/wilkermichael/rollouts-plugin-trafficrouter-consul/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/wilkermichael/rollouts-plugin-trafficrouter-consul/pkg/utils"
 )
 
 const (
@@ -55,6 +56,8 @@ func (r *RpcPlugin) InitPlugin() pluginTypes.RpcError {
 	if err != nil {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
 	}
+
+	r.LogCtx = logrus.NewEntry(logrus.New())
 
 	return pluginTypes.RpcError{}
 }
@@ -235,11 +238,8 @@ func rolloutAborted(rollout *v1alpha1.Rollout) bool {
 
 func getPluginConfig(rollout *v1alpha1.Rollout) (*ConsulTrafficRouting, error) {
 	consulConfig := ConsulTrafficRouting{}
-
-	err := json.Unmarshal(rollout.Spec.Strategy.Canary.TrafficRouting.Plugins[ConfigKey], &consulConfig)
-	if err != nil {
+	if err := json.Unmarshal(rollout.Spec.Strategy.Canary.TrafficRouting.Plugins[ConfigKey], &consulConfig); err != nil {
 		return nil, err
 	}
-
 	return &consulConfig, nil
 }
