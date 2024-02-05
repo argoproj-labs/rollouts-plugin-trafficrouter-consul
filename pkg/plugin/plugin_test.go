@@ -1184,7 +1184,7 @@ func TestSetWeight(t *testing.T) {
 				},
 			},
 			inputSplitter: defaultSplitter(),
-			expectedError: "spec.subsets.canary.filter was not found in consul service resolver",
+			expectedError: "spec.subsets.stable.filter was not found in consul service resolver",
 		},
 		{
 			testName: "error missing splitter subsets",
@@ -1385,6 +1385,310 @@ func TestSetWeight(t *testing.T) {
 			},
 			expectedError: "unexpected service split",
 		},
+		{
+			testName: "error invalid resolver status not synced",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: &consulv1aplha1.ServiceResolver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceResolverSpec{
+					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
+						"stable": {
+							Filter: "Service.Meta.version == 1",
+						},
+						"canary": {
+							Filter: "",
+						},
+					},
+				},
+				Status: consulv1aplha1.Status{
+					Conditions: []consulv1aplha1.Condition{
+						{
+							Type:   consulv1aplha1.ConditionSynced,
+							Status: corev1.ConditionFalse,
+						},
+					},
+				},
+			},
+			inputSplitter: defaultSplitter(),
+			expectedError: "service resolver has not synced with Consul. The service resolver needs to be up to date before rollout can continue",
+		},
+		{
+			testName: "error invalid resolver last synced time mismatch",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: &consulv1aplha1.ServiceResolver{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceResolverSpec{
+					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
+						"stable": {
+							Filter: "Service.Meta.version == 1",
+						},
+						"canary": {
+							Filter: "",
+						},
+					},
+				},
+				Status: consulv1aplha1.Status{
+					Conditions: []consulv1aplha1.Condition{
+						{
+							Type:               consulv1aplha1.ConditionSynced,
+							Status:             corev1.ConditionTrue,
+							LastTransitionTime: metav1.Time{Time: unknownSyncTime(t)},
+						},
+					},
+					LastSyncedTime: &metav1.Time{Time: time.Now()},
+				},
+			},
+			inputSplitter: defaultSplitter(),
+			expectedError: "service resolver has not synced with Consul. The service resolver needs to be up to date before rollout can continue",
+		},
+		{
+			testName: "error invalid splitter status not synced",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: defaultResolver(),
+			inputSplitter: &consulv1aplha1.ServiceSplitter{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceSplitterSpec{
+					Splits: []consulv1aplha1.ServiceSplit{
+						{
+							Weight:        100,
+							ServiceSubset: "stable",
+						},
+						{
+							Weight:        0,
+							ServiceSubset: "canary",
+						},
+					},
+				},
+				Status: consulv1aplha1.Status{
+					Conditions: []consulv1aplha1.Condition{
+						{
+							Type:   consulv1aplha1.ConditionSynced,
+							Status: corev1.ConditionFalse,
+						},
+					},
+				},
+			},
+			expectedError: "service splitter has not synced with Consul. The service splitter needs to be up to date before rollout can continue",
+		},
+		{
+			testName: "error invalid splitter last synced time mismatch",
+			rollout: &v1alpha1.Rollout{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "rollout",
+					Namespace:  "default",
+					Generation: 10,
+				},
+				Spec: v1alpha1.RolloutSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Annotations: map[string]string{
+								"consul.hashicorp.com/service-meta-version": "2",
+							},
+						},
+					},
+					Strategy: v1alpha1.RolloutStrategy{
+						Canary: &v1alpha1.CanaryStrategy{
+							TrafficRouting: &v1alpha1.RolloutTrafficRouting{
+								Plugins: map[string]json.RawMessage{
+									ConfigKey: pluginJson(),
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.RolloutStatus{
+					ObservedGeneration: "10",
+					Conditions: []v1alpha1.RolloutCondition{
+						{
+							Type:   v1alpha1.RolloutCompleted,
+							Status: corev1.ConditionFalse,
+						},
+					},
+					Canary: v1alpha1.CanaryStatus{
+						Weights: &v1alpha1.TrafficWeights{
+							Canary: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+							Stable: v1alpha1.WeightDestination{
+								Weight: 50,
+							},
+						},
+					},
+				},
+			},
+			desiredWeight: 50,
+			inputResolver: defaultResolver(),
+			inputSplitter: &consulv1aplha1.ServiceSplitter{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service",
+					Namespace: "default",
+				},
+				Spec: consulv1aplha1.ServiceSplitterSpec{
+					Splits: []consulv1aplha1.ServiceSplit{
+						{
+							Weight:        100,
+							ServiceSubset: "stable",
+						},
+						{
+							Weight:        0,
+							ServiceSubset: "canary",
+						},
+					},
+				},
+				Status: consulv1aplha1.Status{
+					Conditions: []consulv1aplha1.Condition{
+						{
+							Type:               consulv1aplha1.ConditionSynced,
+							Status:             corev1.ConditionTrue,
+							LastTransitionTime: metav1.Time{Time: unknownSyncTime(t)},
+						},
+					},
+					LastSyncedTime: &metav1.Time{Time: time.Now()},
+				},
+			},
+			expectedError: "service splitter has not synced with Consul. The service splitter needs to be up to date before rollout can continue",
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -1475,6 +1779,16 @@ func defaultSplitter() *consulv1aplha1.ServiceSplitter {
 				},
 			},
 		},
+		Status: consulv1aplha1.Status{
+			Conditions: []consulv1aplha1.Condition{
+				{
+					Type:               consulv1aplha1.ConditionSynced,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: time.Now()},
+				},
+			},
+			LastSyncedTime: &metav1.Time{Time: time.Now()},
+		},
 	}
 }
 
@@ -1494,5 +1808,23 @@ func defaultResolver() *consulv1aplha1.ServiceResolver {
 				},
 			},
 		},
+		Status: consulv1aplha1.Status{
+			Conditions: []consulv1aplha1.Condition{
+				{
+					Type:               consulv1aplha1.ConditionSynced,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Time{Time: time.Now()},
+				},
+			},
+			LastSyncedTime: &metav1.Time{Time: time.Now()},
+		},
 	}
+}
+
+func unknownSyncTime(t *testing.T) time.Time {
+	const layout = "2006-01-02 15:04:05"
+	timeString := "2023-03-06 08:30:00"
+	parsedTime, err := time.Parse(layout, timeString)
+	require.NoError(t, err)
+	return parsedTime
 }
