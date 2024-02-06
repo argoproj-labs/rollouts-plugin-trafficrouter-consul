@@ -217,7 +217,7 @@ func (r *RpcPlugin) updateResolverForAbortedRollout(canarySubsetName string, sr 
 
 func (r *RpcPlugin) updateResolverSubsetForRollouts(subsetName, filterValue string, sr *consulv1aplha1.ServiceResolver) (*consulv1aplha1.ServiceResolver, error) {
 	if _, ok := sr.Spec.Subsets[subsetName]; !ok {
-		return nil, errors.New(fmt.Sprintf("spec.subsets.%s.filter was not found in consul service resolver: %v", subsetName, sr))
+		return nil, fmt.Errorf("spec.subsets.%s.filter was not found in consul service resolver: %v", subsetName, sr)
 	}
 	subset := sr.Spec.Subsets[subsetName]
 	subset.Filter = filterValue
