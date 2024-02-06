@@ -4,7 +4,7 @@ go_lint:
 
 .PHONY: build
 build:
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(TARGETARCH) go build -o rollouts-plugin-trafficrouter-consul ./
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(TARGETARCH) go build -v -o rollouts-plugin-trafficrouter-consul ./
 
 docker:
 	docker build . -t rollouts-plugin-trafficrouter-consul
