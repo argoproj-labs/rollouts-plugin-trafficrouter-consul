@@ -1,0 +1,11 @@
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceResolver
+metadata:
+  name: static-server
+spec:
+  subsets:
+    stable:
+      filter: Service.Meta.version == 1
+    canary:
+      filter: ""
+  defaultSubset: stable

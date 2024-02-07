@@ -1,0 +1,15 @@
+# Configure global settings in this section.
+global:
+  name: consul
+# Configure your Consul servers in this section.
+server:
+  # Specify three servers that wait until all are healthy to bootstrap the Consul cluster.
+  replicas: 1
+# Enable and configure the Consul UI.
+ui:
+  enabled: true
+# Enable Consul connect pod injection
+connectInject:
+  enabled: true
+  apiGateway:
+    manageExternalCRDs: true

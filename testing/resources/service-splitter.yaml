@@ -1,0 +1,10 @@
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceSplitter
+metadata:
+  name: static-server
+spec:
+  splits:
+    - weight: 100
+      serviceSubset: stable
+    - weight: 0
+      serviceSubset: canary
