@@ -41,17 +41,14 @@ apply-crds:
 	-f resources/service-splitter.yaml \
 	-f resources/canary-rollout.yaml
 
-real-path:
-	@echo $(shell realpath ../)
-
-update-kind-config:
-	./scripts/update-kind-config.sh ./resources/kind_config.yaml $(PLUGIN_DIR)
+create-kind-config:
+	./scripts/create-kind-config.sh ./resources/kind_config.yaml $(PLUGIN_DIR)
 
 build-plugin:
 	make -C $(PLUGIN_DIR) build
 
 ### Test Verification
-setup: build-plugin update-kind-config consul-setup argo-setup
+setup: build-plugin create-kind-config consul-setup argo-setup
 
 # Command for checking how the service is being split by running curl from inside a client pod
 splitting-watch:
