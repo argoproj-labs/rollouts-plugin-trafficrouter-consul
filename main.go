@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/wilkermichael/rollouts-plugin-trafficrouter-consul/pkg/plugin"
+	"github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul/pkg/plugin"
 
 	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	goPlugin "github.com/hashicorp/go-plugin"

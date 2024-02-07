@@ -1,4 +1,4 @@
-module github.com/wilkermichael/rollouts-plugin-trafficrouter-consul
+module github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul
 
 go 1.21.6
 

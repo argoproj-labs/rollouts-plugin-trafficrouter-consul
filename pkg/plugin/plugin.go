@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/wilkermichael/rollouts-plugin-trafficrouter-consul/pkg/utils"
+	"github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul/pkg/utils"
 )
 
 const (
