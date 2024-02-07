@@ -10,7 +10,7 @@ This is for building and testing argo rollout integrations with Consul. For simp
 6. Update any of the necessary variables in the `Makefile` to match your environment
 
 # Verify v1 to v2 rollout
-1. Run `make setup` to setup the system with the static-server/client, consul and argo.
+1. Run `make setup` to setup the system with the static-server/client, consul and argo. This will also build the latest plugin.
    - Everything is installed to the `default` namespace except for Argo gets installed in the `argo` namespace.
 2. Run `make check-service-splitter` and `make check-service-resolver`, we will run these scripts periodically throughout the testing scenarios
    - service-splitter: shows 100% of traffic directed to stable

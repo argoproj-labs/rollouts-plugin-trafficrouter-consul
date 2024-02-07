@@ -1,6 +1,6 @@
 KUBERNETES_VERSION = v1.25.11
 CONSUL_K8S_CHART_VERSION = 1.3.1
-PLUGIN_DIR=~/dev/rollouts-plugin-trafficrouter-consul
+PLUGIN_DIR= $(shell realpath ../)
 
 ### SETUP KIND CLUSTER WITH CONSUL
 # setup sets up the kind cluster and deploys the consul helm chart
@@ -41,8 +41,17 @@ apply-crds:
 	-f resources/service-splitter.yaml \
 	-f resources/canary-rollout.yaml
 
+real-path:
+	@echo $(shell realpath ../)
+
+update-kind-config:
+	./scripts/update-kind-config.sh ./resources/kind_config.yaml $(PLUGIN_DIR)
+
+build-plugin:
+	make -C $(PLUGIN_DIR) build
+
 ### Test Verification
-setup: consul-setup argo-setup
+setup: build-plugin update-kind-config consul-setup argo-setup
 
 # Command for checking how the service is being split by running curl from inside a client pod
 splitting-watch:
