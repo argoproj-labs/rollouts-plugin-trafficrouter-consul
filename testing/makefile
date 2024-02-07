@@ -89,3 +89,4 @@ install-required:
 	brew install argoproj/tap/kubectl-argo-rollouts; \
     brew install helm; \
     brew install kind; \
+	brew install yq; \

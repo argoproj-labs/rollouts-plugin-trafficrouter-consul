@@ -4,10 +4,11 @@ This is for building and testing argo rollout integrations with Consul. For simp
 # Prerequisites
 1. Kind is installed on the machine
 2. Helm is installed on the machine
-3. Kubectl is installed on the machine 5
+3. Kubectl is installed on the machine
 4. Argo kubectl extension is installed on the machine
 5. The plugin binary is in a directory on the machine
-6. Update any of the necessary variables in the `Makefile` to match your environment
+6. yq is installed, this is required for running some scripts
+7. Update any of the necessary variables in the `Makefile` to match your environment
 
 # Verify v1 to v2 rollout
 1. Run `make setup` to setup the system with the static-server/client, consul and argo. This will also build the latest plugin.
