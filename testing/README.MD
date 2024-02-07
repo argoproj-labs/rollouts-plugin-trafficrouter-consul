@@ -2,10 +2,10 @@
 This is for building and testing argo rollout integrations with Consul. For simplicity, everything uses the `make` command. The current version of these manual steps requires a custom build image of the argo controller included in the `install.yaml` file in this directory. Once required changes are made to the argo controller and released, these steps will be updated.
 
 # Prerequisites
-1. Kind is installed on the machine
-2. Helm is installed on the machine
-3. Kubectl is installed on the machine
-4. Argo kubectl extension is installed on the machine
+1. Kind is installed on the machine (`brew install kind`)
+2. Helm is installed on the machine (`brew install helm`)
+3. Kubectl is installed on the machine (`brew install kubectl`)
+4. Argo kubectl extension is installed on the machine (`brew install argoproj/tap/kubectl-argo-rollouts`)
 5. The plugin binary is in a directory on the machine
 6. yq is installed, this is required for running some scripts
 7. Update any of the necessary variables in the `Makefile` to match your environment
