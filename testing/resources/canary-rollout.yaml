@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: static-server
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: static-server
+  template:
+    metadata:
+      labels:
+        app: static-server
+      annotations:
+        consul.hashicorp.com/connect-inject: "true"
+        consul.hashicorp.com/service-meta-version: "1"
+        consul.hashicorp.com/service-tags: "v1"
+    spec:
+      containers:
+        - name: static-server
+          # Using alpine vs latest as there is a build issue with M1s. Also other tests in multiport-app reference
+          # alpine so standardizing this.
+          image: docker.mirror.hashicorp.services/hashicorp/http-echo:alpine
+          args:
+            - -text="I am v1"
+            - -listen=:8080
+          ports:
+            - containerPort: 8080
+              name: http
+      serviceAccountName: static-server
+      terminationGracePeriodSeconds: 0 # so deletion is quick
+  strategy:
+    canary:
+      trafficRouting:
+        plugins:
+          hashicorp/consul:
+            stableSubsetName: stable
+            canarySubsetName: canary
+            serviceName: static-server
+      steps:
+      - setWeight: 20
+      - pause: {}
+      - setWeight: 40
+      - pause: {duration: 10}
+      - setWeight: 60
+      - pause: {duration: 10}
+      - setWeight: 80
+      - pause: {duration: 10}
