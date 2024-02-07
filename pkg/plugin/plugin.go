@@ -59,8 +59,6 @@ func (r *RpcPlugin) InitPlugin() pluginTypes.RpcError {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
 	}
 
-	r.LogCtx = logrus.NewEntry(logrus.New())
-
 	return pluginTypes.RpcError{}
 }
 
@@ -89,7 +87,7 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 	// This checks that we are performing a canary rollout, it is not
 	// an error if this is empty. This will be empty on the initial rollout
 	if rollout.Status.Canary == (v1alpha1.CanaryStatus{}) {
-		r.LogCtx.Debug("Rollout does not have a CanaryStatus yet", "desiredWeight", desiredWeight)
+		r.LogCtx.WithFields(logrus.Fields{"desiredWeight": desiredWeight}).Debug("Rollout does not have a CanaryStatus yet")
 		return pluginTypes.RpcError{}
 	}
 
@@ -105,7 +103,7 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 
 	// If the rollout is successful (not aborted) then modify the resolver
 	if rolloutAborted(rollout) {
-		r.LogCtx.Debug("Updating ServiceResolver for aborted rollout", "canarySubsetName", canarySubsetName, "serviceResolver", serviceResolver)
+		r.LogCtx.WithFields(logrus.Fields{"canarySubsetName": canarySubsetName, "serviceResolver": serviceResolver}).Debug("Updating ServiceResolver for aborted rollout")
 		serviceResolver, err = r.updateResolverForAbortedRollout(canarySubsetName, serviceResolver)
 		if err != nil {
 			return pluginTypes.RpcError{ErrorString: err.Error()}
@@ -113,14 +111,14 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 	} else {
 		// Check if the pods have completely rolled over, and we are finished, now set the resolver to the stable version
 		if rolloutComplete(rollout) {
-			r.LogCtx.Debug("Updating ServiceResolver after completion", "stableSubsetName", stableSubsetName, "canarySubsetName", canarySubsetName, "serviceMetaVersion", serviceMetaVersion, "serviceResolver", serviceResolver)
+			r.LogCtx.WithFields(logrus.Fields{"stableSubsetName": stableSubsetName, "canarySubsetName": canarySubsetName, "serviceMetaVersion": serviceMetaVersion, "serviceResolver": serviceResolver}).Debug("Updating ServiceResolver after completion")
 			serviceResolver, err = r.updateResolverAfterCompletion(stableSubsetName, canarySubsetName, serviceMetaVersion, suffix, serviceResolver)
 			if err != nil {
 				return pluginTypes.RpcError{ErrorString: err.Error()}
 			}
 		} else {
 			// Update the resolver so that canary subset points to the desired version
-			r.LogCtx.Debug("Updating ServiceResolver for rollout", "canarySubsetName", canarySubsetName, "serviceMetaVersion", serviceMetaVersion, "serviceResolver", serviceResolver)
+			r.LogCtx.WithFields(logrus.Fields{"canarySubsetName": canarySubsetName, "serviceMetaVersion": serviceMetaVersion, "serviceResolver": serviceResolver}).Debug("Updating ServiceResolver for in progress rollout")
 			serviceResolver, err = r.updateResolverForInProgressRollouts(canarySubsetName, serviceMetaVersion, suffix, serviceResolver)
 			if err != nil {
 				return pluginTypes.RpcError{ErrorString: err.Error()}
@@ -164,7 +162,7 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 	}
 
 	// Persist changes to the ServiceSplitter
-	r.LogCtx.Debug("Updating ServiceSplitter", "serviceSplitter", serviceSplitter)
+	r.LogCtx.WithFields(logrus.Fields{"serviceSplitter": serviceSplitter}).Debug("Updating ServiceSplitter")
 	if err := r.K8SClient.Update(ctx, serviceSplitter, &client.UpdateOptions{}); err != nil {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
 	}
