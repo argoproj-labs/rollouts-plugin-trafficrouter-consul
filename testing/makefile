@@ -44,14 +44,14 @@ consul-setup: kind deploy
 kind: kind-delete
 	kind create cluster --image kindest/node:$(KUBERNETES_VERSION) --name=dc1 --config ./resources/kind_config.yaml
 
-add-helm-Repo:
+add-helm-repo:
 	helm repo add hashicorp https://helm.releases.hashicorp.com
 
 kind-delete:
 	kind delete cluster --name=dc1
 
 deploy:
-	helm install consul hashicorp/consul --version $(CONSUL_K8S_CHART_VERSION) -f values.yaml
+	helm repo update; helm install consul hashicorp/consul --version $(CONSUL_K8S_CHART_VERSION) -f values.yaml
 
 # Install Argo
 argo-setup: deploy-argo apply-crds
