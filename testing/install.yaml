@@ -179,6 +179,19 @@ spec:
                             type: object
                           datadog:
                             properties:
+                              aggregator:
+                                default: last
+                                enum:
+                                  - avg
+                                  - min
+                                  - max
+                                  - sum
+                                  - last
+                                  - percentile
+                                  - mean
+                                  - l2norm
+                                  - area
+                                type: string
                               apiVersion:
                                 default: v1
                                 enum:
@@ -3002,11 +3015,26 @@ spec:
                   type: array
                 terminate:
                   type: boolean
+                ttlStrategy:
+                  properties:
+                    secondsAfterCompletion:
+                      format: int32
+                      type: integer
+                    secondsAfterFailure:
+                      format: int32
+                      type: integer
+                    secondsAfterSuccess:
+                      format: int32
+                      type: integer
+                  type: object
               required:
                 - metrics
               type: object
             status:
               properties:
+                completedAt:
+                  format: date-time
+                  type: string
                 dryRunSummary:
                   properties:
                     count:
@@ -3300,6 +3328,19 @@ spec:
                             type: object
                           datadog:
                             properties:
+                              aggregator:
+                                default: last
+                                enum:
+                                  - avg
+                                  - min
+                                  - max
+                                  - sum
+                                  - last
+                                  - percentile
+                                  - mean
+                                  - l2norm
+                                  - area
+                                type: string
                               apiVersion:
                                 default: v1
                                 enum:
@@ -6307,6 +6348,19 @@ spec:
                             type: object
                           datadog:
                             properties:
+                              aggregator:
+                                default: last
+                                enum:
+                                  - avg
+                                  - min
+                                  - max
+                                  - sum
+                                  - last
+                                  - percentile
+                                  - mean
+                                  - l2norm
+                                  - area
+                                type: string
                               apiVersion:
                                 default: v1
                                 enum:
@@ -11880,11 +11934,13 @@ spec:
           jsonPath: .status.replicas
           name: Current
           type: integer
-        - description: Total number of non-terminated pods targeted by this rollout that have the desired template spec
+        - description: Total number of non-terminated pods targeted by this rollout that
+            have the desired template spec
           jsonPath: .status.updatedReplicas
           name: Up-to-date
           type: integer
-        - description: Total number of available pods (ready for at least minReadySeconds) targeted by this rollout
+        - description: Total number of available pods (ready for at least minReadySeconds)
+            targeted by this rollout
           jsonPath: .status.availableReplicas
           name: Available
           type: integer
@@ -12666,19 +12722,6 @@ spec:
                                   required:
                                     - name
                                   type: object
-                              type: object
-                            consul:
-                              properties:
-                                canarySubsetName:
-                                  type: string
-                                serviceName:
-                                  type: string
-                                stableSubsetName:
-                                  type: string
-                              required:
-                                - canarySubsetName
-                                - serviceName
-                                - stableSubsetName
                               type: object
                             istio:
                               properties:
@@ -15736,17 +15779,6 @@ rules:
       - update
       - patch
   - apiGroups:
-      - consul.hashicorp.com
-    resources:
-      - servicesplitters
-      - serviceresolvers
-    verbs:
-      - create
-      - watch
-      - get
-      - update
-      - patch
-  - apiGroups:
       - getambassador.io
       - x.getambassador.io
     resources:
@@ -15958,7 +15990,7 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argo-rollouts
   strategy:
-    type: Recreate
+    type: RollingUpdate
   template:
     metadata:
       labels:

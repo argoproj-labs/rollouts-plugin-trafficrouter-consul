@@ -47,7 +47,14 @@ while true; do
     timestamp=$(date +"%Y-%m-%d %H:%M:%S")
 
     # Update the CI with the percentages and the timestamp
-    printf "\r$timestamp - Total: $total_count, V1: $v1_count req/$v1_percentage%%, V2: $v2_count req/$v2_percentage%%"
+    #koutput=$(kubectl describe servicesplitters.consul.hashicorp.com)
+    splitterOutput=$(kubectl get servicesplitters.consul.hashicorp.com -o yaml | yq e '.items[].spec.splits' - | yq '.')
+    resolverOutput=$(kubectl get serviceresolver.consul.hashicorp.com -o yaml | yq e '.items[].spec.subsets' - | yq '.')
+
+    clear
+    printf "service-splitter:\n%s\n\nservice-resolver:\n%s\n" "$splitterOutput" "$resolverOutput"
+    printf "\n"
+    printf "\r%s - Total: %d, V1: %d req/%d%%, V2: %d req/%d%%" "$timestamp" "$total_count" "$v1_count" "$v1_percentage" "$v2_count" "$v2_percentage"
 
     sleep 0.003
 done

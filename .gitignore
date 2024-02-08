@@ -1,3 +1,5 @@
 .vscode/
 .idea/
 rollouts-plugin-trafficrouter-consul
+consul
+testing/resources/kind_config.yaml
