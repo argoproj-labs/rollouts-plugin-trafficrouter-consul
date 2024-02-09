@@ -53,3 +53,20 @@ jobs:
       - name: Build creation
         run: |
           make build
+
+  go-mod-tidy:
+    name: Go mod tidy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
