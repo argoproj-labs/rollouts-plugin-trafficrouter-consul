@@ -1,0 +1,46 @@
+name: Sync Fork
+
+#on:
+#  schedule:
+#    - cron: '0 0 * * *'  # Runs every day at 00:00 UTC
+#  workflow_dispatch:
+on:
+  pull_request:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # Fetch all history for all branches and tags.
+
+    - name: Configure Git
+      run: |
+        git config --global user.name 'github-actions'
+        git config --global user.email 'github-actions@github.com'
+
+    - name: Sync fork
+      run: |
+        # Add the upstream repository as a remote
+        git remote add upstream https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul.git
+
+        # Fetch the upstream branches
+        git fetch upstream
+
+        # Check out the branch you want to sync
+        git checkout main
+
+        # Merge changes from the upstream branch into the current branch
+        git merge upstream/main --allow-unrelated-histories --strategy-option=ours
+
+        # Remove the files or directories you want to ignore
+        git rm -r --cached .github
+        git rm --cached README
+
+        # Commit the changes
+        git commit -m "Sync with upstream repository, ignoring certain files"
+
+        # Push the changes to your fork
+        git push origin main
