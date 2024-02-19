@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: Apache-2.0
+
 
 # Check if the correct number of arguments are passed
 if [ "$#" -ne 2 ]; then
