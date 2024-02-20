@@ -58,7 +58,7 @@ argo-setup: deploy-argo apply-crds
 
 deploy-argo:
 	kubectl create namespace argo-rollouts; \
-	kubectl apply -n argo-rollouts -f install.yaml
+	helm install argo-rollouts argo/argo-rollouts -f values_rollout.yaml -n argo-rollouts; \
 	kubectl apply -f $(PLUGIN_DIR)/yaml/rbac.yaml
 
 apply-crds:
