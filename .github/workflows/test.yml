@@ -52,7 +52,7 @@ jobs:
 
       - name: Build creation
         run: |
-          make build
+          CGO_ENABLED=0 GOOS=linux GOARCH=$(TARGETARCH) go build -v -o rollouts-plugin-trafficrouter-consul ./
 
   go-mod-tidy:
     name: Go mod tidy
