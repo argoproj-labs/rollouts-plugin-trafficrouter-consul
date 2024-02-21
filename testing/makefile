@@ -58,7 +58,7 @@ argo-setup: deploy-argo apply-crds
 
 deploy-argo:
 	kubectl create namespace argo-rollouts; \
-	kubectl apply -n argo-rollouts -f install.yaml
+	helm install argo-rollouts argo/argo-rollouts -f values_rollout.yaml -n argo-rollouts; \
 	kubectl apply -f $(PLUGIN_DIR)/yaml/rbac.yaml
 
 apply-crds:
@@ -73,10 +73,10 @@ apply-crds:
 	-f resources/canary_rollout.yaml
 
 create-kind-config:
-	./scripts/create-kind-config.sh ./resources/kind_config.yaml $(PLUGIN_DIR)
+	./scripts/create-kind-config.sh ./resources/kind_config.yaml $(PLUGIN_DIR)/testing
 
 build-plugin:
-	make -C $(PLUGIN_DIR) build
+	@cd $(PLUGIN_DIR); CGO_ENABLED=0 GOOS=linux GOARCH=$(TARGETARCH) go build -v -o testing/rollouts-plugin-trafficrouter-consul ./
 
 ## EXTRAS
 install-required:
