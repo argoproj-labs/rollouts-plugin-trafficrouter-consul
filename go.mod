@@ -3,7 +3,7 @@ module github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul
 go 1.21.6
 
 require (
-	github.com/argoproj/argo-rollouts v1.6.5
+	github.com/argoproj/argo-rollouts v1.6.6
 	github.com/hashicorp/consul-k8s/control-plane v0.0.0-20240125001725-f96e3d6fd67b
 	github.com/hashicorp/go-plugin v1.6.0
 	github.com/sirupsen/logrus v1.9.3
