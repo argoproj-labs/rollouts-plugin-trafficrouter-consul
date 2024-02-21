@@ -1,0 +1,167 @@
+# Copyright (c) HashiCorp, Inc.
+
+name: build
+on:
+  workflow_dispatch:
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches:
+      # Push events on main branch
+      - main
+      # Push events to branches matching refs/heads/release/**
+      - "release/**"
+
+env:
+  PKG_NAME: "rollouts-plugin-trafficrouter-consul"
+
+jobs:
+  get-go-version:
+    name: "Determine Go toolchain version"
+    runs-on: ubuntu-latest
+    outputs:
+      go-version: ${{ steps.get-go-version.outputs.go-version }}
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Determine Go version
+        id: get-go-version
+        # We use .go-version as our source of truth for current Go
+        # version, because "goenv" can react to it automatically.
+        run: |
+          echo "Building with Go $(cat .go-version)"
+          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
+
+  get-product-version:
+    runs-on: ubuntu-latest
+    outputs:
+      product-version: ${{ steps.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: get product version
+        id: get-product-version
+        run: |
+          make version
+          echo "product-version=$(make version)" >> $GITHUB_OUTPUT
+
+  generate-metadata-file:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    outputs:
+      filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
+    steps:
+      - name: "Checkout directory"
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Generate metadata file
+        id: generate-metadata-file
+        uses: hashicorp/actions-generate-metadata@v1
+        with:
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          product: ${{ env.PKG_NAME }}
+          repositoryOwner: "hashicorp"
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: metadata.json
+          path: ${{ steps.generate-metadata-file.outputs.filepath }}
+
+  build:
+    needs: [get-go-version, get-product-version]
+    runs-on: ubuntu-20.04 # the GLIBC is too high on 22.04
+    strategy:
+      matrix:
+        include:
+          # cli
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "freebsd", goarch: "386", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "freebsd", goarch: "amd64", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "linux", goarch: "386", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "linux", goarch: "amd64", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "linux", goarch: "arm", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "linux", goarch: "arm64", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "windows", goarch: "386", "bin_name": "rollouts-plugin-trafficrouter-consul.exe" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "windows", goarch: "amd64", "bin_name": "rollouts-plugin-trafficrouter-consul.exe" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "darwin", goarch: "amd64", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+          - {go: "${{ needs.get-go-version.outputs.go-version }}", goos: "darwin", goarch: "arm64", "bin_name": "rollouts-plugin-trafficrouter-consul" }
+
+      fail-fast: true
+
+    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Setup go
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist out
+
+          export GIT_COMMIT=$(git rev-parse --short HEAD)
+          export GIT_DIRTY=$(test -n "$(git status --porcelain)" && echo "+CHANGES")
+          export GIT_IMPORT=github.com/hashicorp/rollouts-plugin-trafficrouter-consul/version
+          export GOLDFLAGS="-X ${GIT_IMPORT}.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X ${GIT_IMPORT}.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
+
+          ${{ matrix.env }} go build -o dist/${{ matrix.bin_name }} -ldflags "${GOLDFLAGS}" .
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+
+      - name: Upload built binaries
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+  build-docker:
+    name: Docker ${{ matrix.goarch }} default release build
+    needs: [get-product-version, get-go-version, build]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: "linux", goarch: "arm" }
+          - { goos: "linux", goarch: "arm64" }
+          - { goos: "linux", goarch: "386" }
+          - { goos: "linux", goarch: "amd64" }
+    env:
+      repo: ${{ github.event.repository.name }}
+      version: ${{ needs.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        with:
+          name: rollouts-plugin-trafficrouter-consul_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos}}_${{ matrix.goarch }}.zip
+          path: rollouts-plugin-trafficrouter-consul/dist/${{ matrix.goos}}/${{ matrix.goarch }}
+      - name: extract plugin zip
+        env:
+          ZIP_LOCATION: rollouts-plugin-trafficrouter-consul/dist/${{ matrix.goos}}/${{ matrix.goarch }}
+        run: |
+          cd "${ZIP_LOCATION}"
+          unzip -j *.zip
+
+      # This naming convention will be used ONLY for per-commit dev images
+      - name: Set docker dev tag
+        run: |
+          echo "full_dev_tag=${{ env.version }}"
+          echo "full_dev_tag=${{ env.version }}" >> $GITHUB_ENV
+          echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" 
+          echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" >> $GITHUB_ENV
+
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
+        with:
+          version: ${{ env.version }}
+          target: release-default
+          arch: ${{ matrix.goarch }}
+          pkg_name: ${{env.PKG_NAME}}_${{ env.version }}
+          bin_name: ${{env.PKG_NAME}}
+          tags: |
+            docker.io/hashicorp/${{ env.repo }}:${{ env.version }}
+          dev_tags: |
+            docker.io/hashicorppreview/${{env.PKG_NAME}}:${{ env.full_dev_tag }}
+            docker.io/hashicorppreview/${{env.PKG_NAME}}:${{ env.full_dev_tag }}-${{ github.sha }}
+            docker.io/hashicorppreview/${{env.PKG_NAME}}:${{ env.minor_dev_tag }}
+            docker.io/hashicorppreview/${{env.PKG_NAME}}:${{ env.minor_dev_tag }}-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
