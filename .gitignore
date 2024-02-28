@@ -3,3 +3,5 @@
 rollouts-plugin-trafficrouter-consul
 consul
 testing/resources/kind_config.yaml
+testing/values_rollout_init.yaml
+testing/values_rollout_https.yaml
