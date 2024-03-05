@@ -4,8 +4,12 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+
 	"github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul/pkg/plugin"
 
+	"github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul/pkg/version"
 	rolloutsPlugin "github.com/argoproj/argo-rollouts/rollout/trafficrouting/plugin/rpc"
 	goPlugin "github.com/hashicorp/go-plugin"
 	log "github.com/sirupsen/logrus"
@@ -22,6 +26,15 @@ var handshakeConfig = goPlugin.HandshakeConfig{
 }
 
 func main() {
+	// Create a flag to print the version of the plugin
+	// This is useful for debugging and support
+	versionFlag := flag.Bool("version", false, "Print the version of the plugin")
+	flag.Parse()
+	if *versionFlag {
+		fmt.Println(version.GetHumanVersion())
+		return
+	}
+
 	logCtx := log.WithFields(log.Fields{"plugin": "trafficrouter"})
 	log.SetLevel(log.InfoLevel)
 

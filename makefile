@@ -53,24 +53,24 @@ version: ## display version
 ##@ Release
 .PHONY: check-env
 check-env: ## check env
-	@printenv | grep "ROLLOUT_PLUGIN"
+	@printenv | grep "ROLLOUTS_PLUGIN"
 
 .PHONY: prepare-release-script
 prepare-release-script: ## Sets the versions, updates changelog to prepare this repository to release
-ifndef ROLLOUT_PLUGIN_RELEASE_VERSION
-	$(error ROLLOUT_PLUGIN_RELEASE_VERSION is required)
+ifndef ROLLOUTS_PLUGIN_RELEASE_VERSION
+	$(error ROLLOUTS_PLUGIN_RELEASE_VERSION is required)
 endif
-	@source $(CURDIR)/build-support/scripts/functions.sh; prepare_release $(CURDIR) $(ROLLOUT_PLUGIN_RELEASE_VERSION) $(ROLLOUT_PLUGIN_PRERELEASE_VERSION); \
+	@source $(CURDIR)/build-support/scripts/functions.sh; prepare_release $(CURDIR) $(ROLLOUTS_PLUGIN_RELEASE_VERSION) $(ROLLOUTS_PLUGIN_PRERELEASE_VERSION); \
 
 .PHONY: prepare-release
 prepare-release: prepare-release-script
 
 .PHONY: prepare-dev
 prepare-dev: ## prepare main dev
-ifndef ROLLOUT_PLUGIN_NEXT_RELEASE_VERSION
-	$(error ROLLOUT_PLUGIN_NEXT_RELEASE_VERSION is required)
+ifndef ROLLOUTS_PLUGIN_NEXT_RELEASE_VERSION
+	$(error ROLLOUTS_PLUGIN_NEXT_RELEASE_VERSION is required)
 endif
-	source $(CURDIR)/build-support/scripts/functions.sh; prepare_dev $(CURDIR) $(ROLLOUT_PLUGIN_NEXT_RELEASE_VERSION)
+	source $(CURDIR)/build-support/scripts/functions.sh; prepare_dev $(CURDIR) $(ROLLOUTS_PLUGIN_NEXT_RELEASE_VERSION)
 
 ##@ Help
 
