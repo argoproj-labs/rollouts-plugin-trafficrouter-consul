@@ -32,7 +32,7 @@ binary {
   triage {
     suppress {
       vulnerabilites = [
-        "GO-2024-2611", #alias
+        //"GO-2024-2611", #example
       ]
     }
   }
