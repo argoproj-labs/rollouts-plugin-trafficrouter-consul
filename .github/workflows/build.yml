@@ -98,7 +98,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p dist out
-
+          cp LICENSE dist/LICENSE.txt
           export GIT_COMMIT=$(git rev-parse --short HEAD)
           export GIT_DIRTY=$(test -n "$(git status --porcelain)" && echo "+CHANGES")
           export GIT_IMPORT=github.com/hashicorp/rollouts-plugin-trafficrouter-consul/version
