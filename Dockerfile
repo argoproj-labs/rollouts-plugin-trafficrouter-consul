@@ -30,12 +30,14 @@ ARG BIN_NAME=rollouts-plugin-trafficrouter-consul
 ARG VERSION
 ARG TARGETARCH
 ARG TARGETOS
+ENV PRODUCT_NAME=$BIN_NAME
 
 LABEL name=${BIN_NAME} \
       maintainer="Team Consul Kubernetes <team-consul-kubernetes@hashicorp.com>" \
       vendor="HashiCorp" \
       version=${VERSION} \
       release=${VERSION} \
+      licenses="Apache-2.0" \
       summary="rollouts-plugin-trafficrouter-consul is a plugin for Argo Rollouts." \
       description="rollouts-plugin-trafficrouter-consul is a plugin for Argo Rollouts."
 
@@ -49,6 +51,7 @@ RUN apk add --no-cache ca-certificates libcap openssl su-exec iputils libc6-comp
 RUN addgroup ${BIN_NAME} && \
     adduser -S -G ${BIN_NAME} 100
 
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 COPY --from=go-discover /go/bin/discover /bin/
 COPY pkg/bin/linux_${TARGETARCH}/${BIN_NAME} /bin
 
@@ -76,12 +79,14 @@ FROM alpine:3.17 AS release-default
 
 ARG BIN_NAME=rollouts-plugin-trafficrouter-consul
 ARG PRODUCT_VERSION
+ENV PRODUCT_NAME=$BIN_NAME
 
 LABEL name=${BIN_NAME} \
       maintainer="Team Consul Kubernetes <team-consul-kubernetes@hashicorp.com>" \
       vendor="HashiCorp" \
       version=${PRODUCT_VERSION} \
       release=${PRODUCT_VERSION} \
+      licenses="Apache-2.0" \
       summary="rollouts-plugin-trafficrouter-consul is a plugin for Argo Rollouts" \
       description="rollouts-plugin-trafficrouter-consul is a plugin for Argo Rollouts."
 
@@ -99,6 +104,7 @@ ARG TARGETARCH
 RUN addgroup ${BIN_NAME} && \
     adduser -S -G ${BIN_NAME} 100
 
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 COPY --from=go-discover /go/bin/discover /bin/
 COPY dist/${TARGETOS}/${TARGETARCH}/${BIN_NAME} /bin/
 
