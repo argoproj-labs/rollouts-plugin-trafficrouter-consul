@@ -1,12 +1,10 @@
 KUBERNETES_VERSION = v1.25.11
 CONSUL_K8S_CHART_VERSION = 1.3.1
 PLUGIN_DIR= $(shell realpath ../)
-IMAGE=hashicorppreview/rollouts-plugin-trafficrouter-consul:0.0-dev
-HTTPS_BINARY=https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-sample-nginx/releases/download/v0.0.1/metric-plugin-linux-amd64
+IMAGE=hashicorp/rollouts-plugin-trafficrouter-consul:0.0.1-alpha1
 
 #Do Not change
 VALUES_INIT_HELM=values_rollout_init.yaml
-VALUES_HTTPS_HELM=values_rollout_https.yaml
 
 ### TEST VERIFICATION
 .PHONY: setup
@@ -120,23 +118,6 @@ argo-image-values:
 deploy-argo-image:
 	kubectl create namespace argo-rollouts; \
 	helm install argo-rollouts argo/argo-rollouts -f $(VALUES_INIT_HELM) -n argo-rollouts; \
-	kubectl apply -f $(PLUGIN_DIR)/yaml/rbac.yaml
-
-#HTTPS
-.PHONY: setup-https
-setup-https: consul-setup argo-setup-https
-
-.PHONY: argo-setup-https
-argo-setup-https: argo-https-values deploy-argo-https apply-crds
-
-.PHONY: argo-https-values
-argo-https-values:
-	./scripts/create_values_rollout_https_helm.sh ./$(VALUES_HTTPS_HELM) $(HTTPS_BINARY)
-
-.PHONY: deploy-argo-https
-deploy-argo-https:
-	kubectl create namespace argo-rollouts; \
-	helm install argo-rollouts argo/argo-rollouts -f $(VALUES_HTTPS_HELM) -n argo-rollouts; \
 	kubectl apply -f $(PLUGIN_DIR)/yaml/rbac.yaml
 
 ## EXTRAS
