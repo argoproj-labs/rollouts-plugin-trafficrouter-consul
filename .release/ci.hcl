@@ -6,7 +6,7 @@ schema = "1"
 project "rollouts-plugin-trafficrouter-consul" {
   team = "consul"
   slack {
-    notification_channel = "C0421KHNAV9" # feed-consul-ci
+    notification_channel = "C9KPKPKRN" # feed-consul-ci
   }
   github {
     organization = "hashicorp"
