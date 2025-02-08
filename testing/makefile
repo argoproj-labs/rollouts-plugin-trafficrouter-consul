@@ -1,7 +1,12 @@
 KUBERNETES_VERSION = v1.25.11
 CONSUL_K8S_CHART_VERSION = 1.3.1
 PLUGIN_DIR= $(shell realpath ../)
-IMAGE=hashicorp/rollouts-plugin-trafficrouter-consul:0.0.1-alpha1
+IMAGE=hashicorp/rollouts-plugin-trafficrouter-consul:latest
+
+ARGO_CHART_VERSION = 2.39.0
+ARGO_CONTROLLER_REGISTRY = quay.io
+ARGO_CONTROLLER_REPOSITORY = argoproj/argo-rollouts
+ARGO_CONTROLLER_TAG = latest
 
 #Do Not change
 VALUES_INIT_HELM=values_rollout_init.yaml
@@ -79,7 +84,7 @@ argo-setup: deploy-argo apply-crds
 .PHONY: deploy-argo
 deploy-argo:
 	kubectl create namespace argo-rollouts; \
-	helm install argo-rollouts argo/argo-rollouts -f values_rollout.yaml -n argo-rollouts; \
+	helm install argo-rollouts argo/argo-rollouts --version $(ARGO_CHART_VERSION) -f values_rollout.yaml -n argo-rollouts; \
 	kubectl apply -f $(PLUGIN_DIR)/yaml/rbac.yaml
 
 .PHONY: apply-crds
@@ -117,7 +122,7 @@ argo-image-values:
 .PHONY: deploy-argo-image
 deploy-argo-image:
 	kubectl create namespace argo-rollouts; \
-	helm install argo-rollouts argo/argo-rollouts -f $(VALUES_INIT_HELM) -n argo-rollouts; \
+	helm install argo-rollouts argo/argo-rollouts --version $(ARGO_CHART_VERSION) -f $(VALUES_INIT_HELM) -n argo-rollouts; \
 	kubectl apply -f $(PLUGIN_DIR)/yaml/rbac.yaml
 
 ## EXTRAS

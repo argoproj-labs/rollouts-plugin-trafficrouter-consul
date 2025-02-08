@@ -1,17 +1,16 @@
 controller:
   image:
     # -- Registry to use
-    registry: docker.io
+    registry: quay.io
     # -- Repository to use
-    repository: wilko1989/argo-rollouts
+    repository: argoproj/argo-rollouts
     # -- Overrides the image tag (default is the chart appVersion)
-    tag: latest
+    tag: ""
     # -- Image pull policy
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   trafficRouterPlugins:
-    trafficRouterPlugins: |-
-      - name: "hashicorp/consul"
-        location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
+    - name: "hashicorp/consul"
+      location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
   volumes:
     - name: consul-route-plugin
       hostPath:
