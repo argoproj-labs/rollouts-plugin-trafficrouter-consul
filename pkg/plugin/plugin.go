@@ -29,6 +29,7 @@ const (
 	filterServiceMetaVersionTemplate = "Service.Meta.%s == %s"
 )
 
+// ConsulTrafficRouting represents the parameters required to configure the Consul Traffic Routing plugin
 type ConsulTrafficRouting struct {
 	ServiceName                 string `json:"serviceName" protobuf:"bytes,1,opt,name=serviceName"`
 	CanarySubsetName            string `json:"canarySubsetName" protobuf:"bytes,2,opt,name=canarySubsetName"`
@@ -36,6 +37,7 @@ type ConsulTrafficRouting struct {
 	ServiceMetaAnnotationSuffix string `json:"serviceMetaAnnotationSuffix" protobuf:"bytes,4,opt,name=serviceMetaAnnotationSuffix"`
 }
 
+// RpcPlugin is the implementation of the TrafficRouterPlugin interface
 type RpcPlugin struct {
 	K8SClient client.Client
 	LogCtx    *logrus.Entry
@@ -44,6 +46,7 @@ type RpcPlugin struct {
 
 var _ rolloutsPlugin.TrafficRouterPlugin = (*RpcPlugin)(nil)
 
+// InitPlugin initializes the plugin adding the consul scheme to the k8s client
 func (r *RpcPlugin) InitPlugin() pluginTypes.RpcError {
 	if r.IsTest {
 		return pluginTypes.RpcError{}
@@ -65,10 +68,7 @@ func (r *RpcPlugin) InitPlugin() pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin) UpdateHash(_ *v1alpha1.Rollout, _, _ string, _ []v1alpha1.WeightDestination) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
+// SetWeight is called each time the rollout is updated to set the weight of the subsets
 func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ []v1alpha1.WeightDestination) pluginTypes.RpcError {
 	ctx := context.TODO()
 	consulConfig, err := getPluginConfig(rollout)
@@ -129,6 +129,7 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 		}
 	}
 
+	// Get the service splitter
 	serviceSplitter := &consulv1aplha1.ServiceSplitter{}
 	if err := r.K8SClient.Get(ctx, types.NamespacedName{Name: serviceName, Namespace: rollout.GetNamespace()}, serviceSplitter, &client.GetOptions{}); err != nil {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
@@ -142,11 +143,15 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 	if len(serviceSplitter.Spec.Splits) == 0 {
 		return pluginTypes.RpcError{ErrorString: "spec.splits was not found in consul service splitter"}
 	}
+
+	// Assure that the split only contains the supported two subsets
 	if len(serviceSplitter.Spec.Splits) != 2 {
 		return pluginTypes.RpcError{ErrorString: fmt.Sprintf("unexpected number of service splits. Expected 2, found %d", len(serviceSplitter.Spec.Splits))}
 	}
 
 	// We only expect there to be two splits, one for the canary and one for the stable
+	// The canary subset should be the first split, represented by the desiredWeight (a percentage value), and the
+	// stable subset should be the second split, represented by 100% - desiredWeight
 	for i, split := range serviceSplitter.Spec.Splits {
 		switch split.ServiceSubset {
 		case canarySubsetName:
@@ -159,35 +164,46 @@ func (r *RpcPlugin) SetWeight(rollout *v1alpha1.Rollout, desiredWeight int32, _ 
 	}
 
 	// Persist resources at end of function to prevent writing to the cluster if there is an error
-	// Persist changes to the ServiceResolver
-	if err := r.K8SClient.Update(ctx, serviceResolver, &client.UpdateOptions{}); err != nil {
-		return pluginTypes.RpcError{ErrorString: err.Error()}
-	}
-
 	// Persist changes to the ServiceSplitter
 	r.LogCtx.WithFields(logrus.Fields{"serviceSplitter": serviceSplitter}).Debug("Updating ServiceSplitter")
 	if err := r.K8SClient.Update(ctx, serviceSplitter, &client.UpdateOptions{}); err != nil {
 		return pluginTypes.RpcError{ErrorString: err.Error()}
 	}
+
+	// Persist changes to the ServiceResolver
+	r.LogCtx.WithFields(logrus.Fields{"serviceResolver": serviceResolver}).Debug("Updating ServiceResolver")
+	if err := r.K8SClient.Update(ctx, serviceResolver, &client.UpdateOptions{}); err != nil {
+		return pluginTypes.RpcError{ErrorString: err.Error()}
+	}
 	return pluginTypes.RpcError{}
 }
 
-func (r *RpcPlugin) SetHeaderRoute(_ *v1alpha1.Rollout, _ *v1alpha1.SetHeaderRoute) pluginTypes.RpcError {
-	return pluginTypes.RpcError{}
-}
-
-func (r *RpcPlugin) VerifyWeight(_ *v1alpha1.Rollout, _ int32, _ []v1alpha1.WeightDestination) (pluginTypes.RpcVerified, pluginTypes.RpcError) {
-	return pluginTypes.NotImplemented, pluginTypes.RpcError{}
-}
-
+// Type returns the type of the plugin
 func (r *RpcPlugin) Type() string {
 	return Type
 }
 
+// UpdateHash is currently an empty stub to satisfy the interface
+func (r *RpcPlugin) UpdateHash(_ *v1alpha1.Rollout, _, _ string, _ []v1alpha1.WeightDestination) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
+}
+
+// SetHeaderRoute is currently an empty stub to satisfy the interface
+func (r *RpcPlugin) SetHeaderRoute(_ *v1alpha1.Rollout, _ *v1alpha1.SetHeaderRoute) pluginTypes.RpcError {
+	return pluginTypes.RpcError{}
+}
+
+// VerifyWeight is currently an empty stub to satisfy the interface
+func (r *RpcPlugin) VerifyWeight(_ *v1alpha1.Rollout, _ int32, _ []v1alpha1.WeightDestination) (pluginTypes.RpcVerified, pluginTypes.RpcError) {
+	return pluginTypes.NotImplemented, pluginTypes.RpcError{}
+}
+
+// SetMirrorRoute is currently an empty stub to satisfy the interface
 func (r *RpcPlugin) SetMirrorRoute(_ *v1alpha1.Rollout, _ *v1alpha1.SetMirrorRoute) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
 
+// RemoveManagedRoutes is currently an empty stub to satisfy the interface
 func (r *RpcPlugin) RemoveManagedRoutes(_ *v1alpha1.Rollout) pluginTypes.RpcError {
 	return pluginTypes.RpcError{}
 }
@@ -267,6 +283,8 @@ func validateConfig(cfg ConsulTrafficRouting) error {
 	return nil
 }
 
+// validateResolverSyncStatus checks if the resolver has synced with Consul, this is necessary to ensure that the resolver
+// is up-to-date before the rollout can continue
 func validateResolverSyncStatus(resolver *consulv1aplha1.ServiceResolver) error {
 	for _, condition := range resolver.Status.Conditions {
 		if condition.Type == consulv1aplha1.ConditionSynced {
@@ -278,6 +296,8 @@ func validateResolverSyncStatus(resolver *consulv1aplha1.ServiceResolver) error 
 	return nil
 }
 
+// validateSplitterSyncStatus checks if the splitter has synced with Consul, this is necessary to ensure that the splitter
+// is up-to-date before the rollout can continue
 func validateSplitterSyncStatus(splitter *consulv1aplha1.ServiceSplitter) error {
 	for _, condition := range splitter.Status.Conditions {
 		if condition.Type == consulv1aplha1.ConditionSynced {
