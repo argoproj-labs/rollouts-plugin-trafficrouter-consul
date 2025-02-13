@@ -1,7 +1,8 @@
 module github.com/argoproj-labs/rollouts-plugin-trafficrouter-consul
 
-go 1.21.6
-toolchain go1.22.4
+go 1.22.0
+
+toolchain go1.23.3
 
 require (
 	github.com/argoproj/argo-rollouts v1.6.6
