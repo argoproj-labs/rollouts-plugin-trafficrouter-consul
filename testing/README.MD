@@ -7,8 +7,11 @@ This is for building and testing argo rollout integrations with Consul. For simp
 3. Kubectl is installed on the machine (`brew install kubectl`)
 4. Argo kubectl extension is installed on the machine (`brew install argoproj/tap/kubectl-argo-rollouts`)
 5. The plugin binary is in a directory on the machine
-6. yq is installed, this is required for running some scripts
-7. Update any of the necessary variables in the `Makefile` to match your environment
+6. yq is installed, this is required for running some scripts (`brew install yq`)
+7. jq is installed, this is required for running some scripts (`brew install jq`)
+8. Hashicorp repo is added to Helm (`helm repo add hashicorp https://helm.releases.hashicorp.com`)
+9. Argo repo is added to Helm (`helm repo add argo https://argoproj.github.io/argo-helm`)
+10. Update any of the necessary variables in the `Makefile` to match your environment
 
 # Verify v1 to v2 rollout
 1. Run `make setup` to setup the system with the static-server/client, consul and argo. This will also build the latest plugin.

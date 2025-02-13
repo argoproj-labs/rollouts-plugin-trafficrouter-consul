@@ -32,9 +32,8 @@ controller:
         - name: consul-plugin
           mountPath: /plugin-bin/hashicorp
   trafficRouterPlugins:
-    trafficRouterPlugins: |-
-      - name: "hashicorp/consul"
-        location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
+    - name: "hashicorp/consul"
+      location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
   volumes:
     - name: consul-plugin
       emptyDir: {}
@@ -60,9 +59,8 @@ To build the binary and install Rollouts, complete the following steps:
 ```yaml
 controller:
   trafficRouterPlugins:
-    trafficRouterPlugins: |-
-      - name: "argoproj-labs/consul"
-        location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
+    - name: "argoproj-labs/consul"
+      location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
   volumes:
     - name: consul-route-plugin
       hostPath:
@@ -129,9 +127,13 @@ metadata:
   name: argo-rollouts-config
   namespace: argo-rollouts
 data:
-  trafficRouterPlugins: |-
-    - name: "argoproj-labs/consul"
-      location: "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
+  trafficRouterPlugins: |
+      [
+        {
+          "name": "argoproj-labs/consul",
+          "location" : "file:///plugin-bin/hashicorp/rollouts-plugin-trafficrouter-consul"
+        }
+      ]      
 binaryData: {}
 ```
 

@@ -9,23 +9,25 @@ fi
 # New host path
 helm_file=$1
 binary=$2
+registry=$3
+repository=$4
+tag=$5
 
 # Create the YAML structure and write it to kind_config_file
 cat << EOF > "$helm_file"
 controller:
   image:
     # -- Registry to use
-    registry: docker.io
+    registry: $registry
     # -- Repository to use
-    repository: wilko1989/argo-rollouts
+    repository: $repository
     # -- Overrides the image tag (default is the chart appVersion)
-    tag: latest
+    tag: $tag
     # -- Image pull policy
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   trafficRouterPlugins:
-    trafficRouterPlugins: |-
-      - name: "hashicorp/consul"
-        location: $binary # supports http(s):// urls and file://
+    - name: "hashicorp/consul"
+      location: $binary # supports http(s):// urls and file://
   volumes:
     - name: consul-plugin
       emptyDir: {}
