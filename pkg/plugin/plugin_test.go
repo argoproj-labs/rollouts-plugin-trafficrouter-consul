@@ -92,7 +92,7 @@ func TestSetWeight(t *testing.T) {
 							Filter: "Service.Meta.version == 1",
 						},
 						"canary": {
-							Filter: "Service.Meta.version == 2",
+							Filter: "Service.Meta.version == \"2\"",
 						},
 					},
 				},
@@ -176,7 +176,7 @@ func TestSetWeight(t *testing.T) {
 							Filter: "Service.Meta.version == 1",
 						},
 						"canary": {
-							Filter: "Service.Meta.version == 2",
+							Filter: "Service.Meta.version == \"2\"",
 						},
 					},
 				},
@@ -260,7 +260,7 @@ func TestSetWeight(t *testing.T) {
 							Filter: "Service.Meta.version == 1",
 						},
 						"canary": {
-							Filter: "Service.Meta.version == 2",
+							Filter: "Service.Meta.version == \"2\"",
 						},
 					},
 				},
@@ -344,7 +344,7 @@ func TestSetWeight(t *testing.T) {
 							Filter: "Service.Meta.version == 1",
 						},
 						"canary": {
-							Filter: "Service.Meta.version == 2",
+							Filter: "Service.Meta.version == \"2\"",
 						},
 					},
 				},
@@ -425,7 +425,7 @@ func TestSetWeight(t *testing.T) {
 				Spec: consulv1aplha1.ServiceResolverSpec{
 					Subsets: map[string]consulv1aplha1.ServiceResolverSubset{
 						"stable": {
-							Filter: "Service.Meta.version == 2",
+							Filter: "Service.Meta.version == \"2\"",
 						},
 						"canary": {
 							Filter: "",
@@ -512,7 +512,7 @@ func TestSetWeight(t *testing.T) {
 							Filter: "Service.Meta.version == 1",
 						},
 						"canary": {
-							Filter: "Service.Meta.version == 2",
+							Filter: "Service.Meta.version == \"2\"",
 						},
 					},
 				},
@@ -697,7 +697,7 @@ func TestSetWeight(t *testing.T) {
 							Filter: "Service.Meta.number == 1",
 						},
 						"canary": {
-							Filter: "Service.Meta.number == 2",
+							Filter: "Service.Meta.number == \"2\"",
 						},
 					},
 				},
