@@ -26,7 +26,7 @@ import (
 
 const (
 	serviceMetaVersionAnnotation     = "consul.hashicorp.com/service-meta-%s"
-	filterServiceMetaVersionTemplate = "Service.Meta.%s == %s"
+	filterServiceMetaVersionTemplate = "Service.Meta.%s == %q"
 )
 
 // ConsulTrafficRouting represents the parameters required to configure the Consul Traffic Routing plugin
